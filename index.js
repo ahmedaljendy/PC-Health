@@ -52,6 +52,6 @@ app.get("/api/uptime", async (req, res) => {
   }
 });
 
-app.listen(3000, () => {
+app.listen(PORT, () => {
   console.log(`Server running on ${PORT}`);
 });
