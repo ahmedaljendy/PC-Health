@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PC Health Monitor</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      .container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+      }
+      .card {
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        padding: 15px;
+      }
+      h2 {
+        margin-top: 0;
+      }
+      progress {
+        width: 100%;
+      }
+      button {
+        margin-top: 10px;
+        padding: 8px 12px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>PC Health Monitor</h1>
+
+    <div class="card">
+      <h2>System</h2>
+      <p>OS: <span id="os-info">...</span></p>
+      <p>Uptime: <span id="uptime-info">...</span></p>
+      <button onclick="fetchSystemInfo()">Get System Info</button>
+    </div>
+
+    <div class="container">
+      <div class="card">
+        <h2>CPU</h2>
+        <p>Type: <span id="cpu-type">...</span></p>
+        <p>Current Load: <span id="cpu-load">...</span>%</p>
+        <progress id="cpu-progress" value="0" max="100"></progress>
+      </div>
+      <div class="card">
+        <h2>Memory</h2>
+        <p>Total: <span id="mem-total">...</span> GB</p>
+        <p>Free: <span id="mem-free">...</span> GB</p>
+        <p>Usage: <span id="mem-usage">...</span></p>
+        <progress id="mem-progress" value="0" max="100"></progress>
+        <button onclick="fetchMemoryInfo()">Get Memory Info</button>
+      </div>
+      <div class="card" id="disk-info">
+        <h2>Disk Usage</h2>
+        <button onclick="fetchDiskInfo()">Get Disk Info</button>
+      </div>
+    </div>
+
+    <script>
+      async function fetchSystemInfo() {
+        try {
+          const osRes = await fetch("/api/os");
+          const osData = await osRes.json();
+          document.getElementById(
+            "os-info"
+          ).textContent = `${osData.platform} ${osData.distro} ${osData.release}`;
+
+          const uptimeRes = await fetch("/api/uptime");
+          const uptimeData = await uptimeRes.json();
+          const uptimeHours = Math.floor(uptimeData.uptime / 3600);
+          const uptimeMinutes = Math.floor((uptimeData.uptime % 3600) / 60);
+          document.getElementById(
+            "uptime-info"
+          ).textContent = `${uptimeHours}h ${uptimeMinutes}m`;
+        } catch (error) {
+          console.error("Error fetching system info:", error);
+        }
+      }
+
+      setInterval(fetchCpuInfo, 2000); // Refresh CPU every 2 seconds
+
+      async function fetchCpuInfo() {
+        try {
+          const cpuRes = await fetch("/api/cpu");
+          const cpuData = await cpuRes.json();
+          document.getElementById(
+            "cpu-type"
+          ).textContent = `${cpuData.manufacturer} ${cpuData.brand}`;
+          const cpuLoad = cpuData.currentLoad.toFixed(2);
+          document.getElementById("cpu-load").textContent = cpuLoad;
+          document.getElementById("cpu-progress").value = cpuLoad;
+        } catch (error) {
+          console.error("Error fetching CPU info:", error);
+        }
+      }
+
+      async function fetchMemoryInfo() {
+        try {
+          const memRes = await fetch("/api/memory");
+          const memData = await memRes.json();
+          const memTotal = (memData.total / 1024 / 1024 / 1024).toFixed(2);
+          const memFree = (memData.free / 1024 / 1024 / 1024).toFixed(2);
+          const memUsed = (memData.used / 1024 / 1024 / 1024).toFixed(2);
+          const memPercent = ((memData.used / memData.total) * 100).toFixed(2);
+
+          document.getElementById("mem-total").textContent = memTotal;
+          document.getElementById("mem-free").textContent = memFree;
+          document.getElementById("mem-usage").textContent = `${memUsed} GB`;
+          document.getElementById("mem-progress").value = memPercent;
+        } catch (error) {
+          console.error("Error fetching memory info:", error);
+        }
+      }
+
+      async function fetchDiskInfo() {
+        try {
+          const diskRes = await fetch("/api/disk");
+          const diskData = await diskRes.json();
+          const diskInfoDiv = document.getElementById("disk-info");
+
+          const existingDiskElements =
+            diskInfoDiv.querySelectorAll(".disk-drive");
+          existingDiskElements.forEach((el) => el.remove());
+
+          diskData.forEach((disk) => {
+            const diskUsed = (disk.used / 1024 / 1024 / 1024).toFixed(2);
+            const diskTotal = (disk.size / 1024 / 1024 / 1024).toFixed(2);
+            const diskPercent = disk.use.toFixed(2);
+
+            const diskElement = document.createElement("div");
+            diskElement.className = "disk-drive";
+            diskElement.innerHTML = `
+                        <p>${disk.fs}: ${diskUsed} GB / ${diskTotal} GB</p>
+                        <progress value="${diskPercent}" max="100"></progress>
+                    `;
+            diskInfoDiv.appendChild(diskElement);
+          });
+        } catch (error) {
+          console.error("Error fetching disk info:", error);
+        }
+      }
+    </script>
+  </body>
+</html>
